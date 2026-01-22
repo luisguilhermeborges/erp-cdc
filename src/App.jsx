@@ -8,59 +8,57 @@ import StockEntryForm from './components/StockEntryForm';
 
 function App() {
   const [activeStock, setActiveStock] = useState('matriz');
-  const [searchTerm, setSearchTerm] = useState(''); // Estado para a busca
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [inventory, setInventory] = useState(() => {
-    const saved = localStorage.getItem('inventory');
-    return saved ? JSON.parse(saved) : [
-      { id: 1, name: 'Picanha', qty: 50, unit: 'matriz', status: 'Em Estoque', price: '89.90' },
-      { id: 2, name: 'Contra Filé', qty: 30, unit: 'alphaville', status: 'Em Estoque', price: '65.00' },
-      { id: 3, name: 'Maminha', qty: 4, unit: 'gleba', status: 'Baixo Estoque', price: '45.00' }
-    ];
+    try {
+      const saved = localStorage.getItem('inventory_cdc_vFinal');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('inventory', JSON.stringify(inventory));
+    localStorage.setItem('inventory_cdc_vFinal', JSON.stringify(inventory));
   }, [inventory]);
 
   const addStockItem = (newItem) => {
-    const status = newItem.qty <= 5 ? 'Baixo Estoque' : 'Em Estoque';
-    setInventory([{ ...newItem, id: Date.now(), status }, ...inventory]);
+    const status = Number(newItem.qty) <= 5 ? 'Baixo Estoque' : 'Em Estoque';
+    setInventory(prev => [{ ...newItem, id: Date.now(), status }, ...prev]);
   };
 
   const deleteItem = (id) => {
-    if(window.confirm("Tem certeza que deseja excluir este item?")) {
-      setInventory(inventory.filter(item => item.id !== id));
+    if (window.confirm("Deseja realmente remover este item?")) {
+      setInventory(prev => prev.filter(item => item.id !== id));
     }
   };
 
-  // Filtro combinado: Unidade + Termo de Busca
-  const currentItems = inventory.filter(item => 
+  const filteredItems = (inventory || []).filter(item => 
+    item && 
     item.unit === activeStock && 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (item.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const totalKg = filteredItems.reduce((acc, curr) => acc + Number(curr.qty || 0), 0);
 
   return (
     <div className="flex min-h-screen bg-[#f8fafc]">
       <Sidebar />
-      <main className="flex-1 p-10 overflow-y-auto">
+      <main className="flex-1 p-6 md:p-10 overflow-y-auto">
         <WelcomeBanner />
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto space-y-8">
           <StockSelector activeStock={activeStock} setActiveStock={setActiveStock} />
           <StockEntryForm activeStock={activeStock} onAdd={addStockItem} />
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <StatusCard title="Unidade Ativa" count={activeStock.toUpperCase()} color="blue" />
-            <StatusCard title="Produtos Encontrados" count={currentItems.length} color="green" />
-            <StatusCard 
-              title="Peso Total (Filtrado)" 
-              count={`${currentItems.reduce((a, b) => a + Number(b.qty), 0).toFixed(2)}kg`} 
-              color="purple" 
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StatusCard title="Unidade" count={activeStock.toUpperCase()} color="blue" />
+            <StatusCard title="Produtos" count={filteredItems.length} color="green" />
+            <StatusCard title="Peso Total" count={`${totalKg.toFixed(2)}kg`} color="purple" />
           </div>
 
           <OrdersTable 
-            items={currentItems} 
+            items={filteredItems} 
             stockName={activeStock} 
             onDelete={deleteItem}
             searchTerm={searchTerm}
